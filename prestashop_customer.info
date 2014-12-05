@@ -1,0 +1,4 @@
+name = Drupal Prestashop
+description = "This module creates a user in Prestashop when a user is created in Drupal"
+core = 7.x
+package = Prestashop

@@ -1,0 +1,167 @@
+<?php
+
+/**
+ * Implements hook_init().
+ */
+function prestashop_customer_init() {
+
+  require_once 'PSWebServiceLibrary.php';
+}
+
+function prestashop_customer_menu() {
+
+  $items['admin/config/system/prestashop'] = array(
+    'title' => 'Prestashop Config',
+    'description' => '@todo description',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('prestashop_customer_config_form'),
+    'access callback' => TRUE, //@todo add perm
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  return $items;
+
+}
+
+function prestashop_customer_config_form($form, &$form_state) {
+
+  $form['prestashop_key'] = array (
+    '#type' => 'textfield',
+    '#title' => t('Prestashop API Key'),
+    '#maxlength' => 127,
+    '#default_value' =>  variable_get('prestashop_key', ''),
+  );
+
+  $form['prestashop_url'] = array (
+    '#type' => 'textfield',
+    '#title' => t('Prestashop URL'),
+    '#maxlength' => 127,
+    '#default_value' => variable_get('prestashop_url', ''),
+    '#description' => 'Enter URL in the form "http://example.com/" (include the trailing slash)',
+  );
+
+  // $form['prestashop_cookie_key'] = array(
+  //   '#type' => 'textfield',
+  //   '#title' => 'Prestashop Cookie Key',
+  //   '#maxlength' => 127,
+  //   '#default_value' => variable_get('prestashop_cookie_key', ''),
+  //   '#description' => 'Might not use this!'
+  // );
+
+  // $form['prestashop_debug_mode'] = array(
+
+  //   '#type' => 'checkbox', 
+  //   '#title' => t('Enable Debug mode'),
+  //   '#description' => t('@todo'),
+  // );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Custom function to create a user in Prestashop.
+ */
+function prestashop_create_user($user) {
+  $url = variable_get('prestashop_url', '');
+  $key = variable_get('prestashop_key', '');
+
+  $webService = new PrestaShopWebservice($url, $key, true);
+  $xml = $webService -> get(array('url' => $url . '/api/customers?schema=blank'));
+
+  $resources = $xml->children()->children();
+
+  unset($resources->id);
+  $resources->id_default_group = 3;
+  unset($resources->id_lang);
+  unset($resources->newsletter_date_add);
+  unset($resources->ip_registration_newsletter);
+  unset($resources->last_passwd_gen);
+  unset($resources->secure_key);
+  unset($resources->deleted);
+  $resources->passwd = $user['pass'];
+  $resources->lastname = $user['field_last_name'];
+  $resources->firstname = $user['field_first_name'];
+  $resources->email = $user['mail'];
+  unset($resources->id_gender);
+  unset($resources->birthday);
+  unset($resources->newsletter);
+  unset($resources->optin);
+  unset($resources->website);
+  unset($resources->company);
+  unset($resources->siret);
+  unset($resources->ape);
+  unset($resources->outstanding_allow_amount);
+  unset($resources->show_public_prices);
+  unset($resources->id_risk);
+  unset($resources->max_payment_days);
+  $resources->active = 1;
+  unset($resources->note);
+  unset($resources->is_guest);
+  unset($resources->id_shop);
+  unset($resources->id_shop_group);
+  unset($resources->date_add);
+  unset($resources->date_upd);
+  unset($resources->associations);
+
+  $opt = array('resource' => 'customers');
+
+  $opt['postXml'] = $xml->asXML();
+
+  $xml = $webService->add($opt);
+}
+
+function prestashop_get_user($edit, $account) {
+  $url = variable_get('prestashop_url', '');
+  $key = variable_get('prestashop_key', '');
+
+  $webService = new PrestaShopWebservice($url, $key, true);
+  $xml = $webService -> get(array('url' => $url . '/api/customers?filter[email]=' . $account->mail));
+
+  $resources = $xml->children()->children();
+}
+
+function prestashop_customer_create_presta_login($email = 'paul@paulmiller.it') {
+
+  $url = variable_get('prestashop_url', '');
+  $key = variable_get('prestashop_key', '');
+
+  $webService = new PrestaShopWebservice($url, $key, true);
+  $xml = $webService->get(array('url' => $url . 'api/customer_login?email=' . $email));
+
+  $cookie_name = trim((string)$xml->cookie->name);
+  $cookie_value = trim((string)$xml->cookie->value);
+
+  //cookie_value has already been URL encoded
+  return setrawcookie ( $cookie_name,  $cookie_value, time() + 1728000, '/', '.llrsso.dev', FALSE, TRUE);
+
+}
+
+function prestashop_customer_user_login(&$edit, $account) {
+
+  $cookie_set = prestashop_customer_create_presta_login($account->mail);
+
+}
+
+
+/**
+ * Implements hook_form_FORM_ID_alter.
+ * @param $form
+ * @param $form_state
+ */
+function prestashop_customer_form_user_register_form_alter(&$form, &$form_state) {
+  $form['#submit'][] = 'prestashop_customer_user_register_submit';
+}
+
+function prestashop_customer_user_register_submit(&$form, &$form_state) {
+  $values = $form_state['values'];
+  $user = array(
+    'pass' => $values['pass'],
+    'mail' => $values['mail'],
+    'field_first_name' => $values['field_first_name'][LANGUAGE_NONE][0]['value'],
+    'field_last_name' => $values['field_last_name'][LANGUAGE_NONE][0]['value'],
+  );
+  prestashop_create_user($user);
+}
+
+
+
