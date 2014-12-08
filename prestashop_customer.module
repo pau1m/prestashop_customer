@@ -1,11 +1,15 @@
 <?php
 
+
+  require_once 'PSWebServiceLibrary.php';
+
 /**
  * Implements hook_init().
  */
 function prestashop_customer_init() {
 
-  require_once 'PSWebServiceLibrary.php';
+ // require_once 'PSWebServiceLibrary.php';
+
 }
 
 function prestashop_customer_menu() {
@@ -142,6 +146,19 @@ function prestashop_customer_user_login(&$edit, $account) {
 
 }
 
+function prestashop_customer_user_logout($account) {
+
+  foreach($_COOKIE as $key => $value) {
+    if (preg_match('/PrestaShop/', $key)) {
+
+    //delete values and set expire time in past
+    setcookie($key, "", time()-3600);
+    //remove from header
+    unset($_COOKIE[$key]);
+    }
+  }
+}
+
 
 /**
  * Implements hook_form_FORM_ID_alter.
@@ -165,3 +182,12 @@ function prestashop_customer_user_register_submit(&$form, &$form_state) {
 
 
 
+
+  $found_cookie = NULL;
+  foreach($_COOKIE as $key => $value) {
+    if (preg_match('/PrestaShop/', $key)) {
+      $found_cookie = $key;
+    }
+  } 
+    setcookie($found_cookie, "", time()-3600);
+    unset($_COOKIE[$found_cookie]);
