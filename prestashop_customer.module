@@ -1,22 +1,19 @@
 <?php
 
-
-
-
-
-//@todo actionBeforeAuthentication
-//@todo use libraries module to add presta stuffies
+//@todo add try / catch and error handling for requests
+//@todo overide front controller redirecting to /user on d site
+//@todo actionBeforeAuthentication <-- helpful hook
 //@todo tidy up included files
 //@todo add feature for additional profile fields 
 //@todo add error handling and checking 
-//@todo put static value in drupal variables
+//@todo put config values in drupal variables
+//@todo create module config page on presta site
+//@todo set up debug and drupal watchdog
 //@todo refactor
+//@todo add validation and to prestashop config page and trim values
+//@todo add documentaton to the config page on where to find these values within prestashop
 
 
-
-
-//@todo -> put these in config files 
-//would it be terrible wrong to create 
 define('_COOKIE_KEY_', 'cnVHEPeCHmZ4EiZE6mhgaNKVfmD8LYgE2FL8tHErKBgRzciZPprGa3GP');
 define('_COOKIE_IV_', 'sqmYZJCL');
 define('_RIJNDAEL_KEY_', 'dutwichtd2IAk1JZeTc8HxuiAqatzQ2k');
@@ -26,91 +23,7 @@ define('PS_CIPHER_ALGORITHM', 1);  //use mcrypt lib and not blowfisj
 
 // add ps lang default check PS_LANG_DEFAULT
 
-function prestashop_customer_read_cookie() {
-
- // include_once('prestashop/config/config.inc.php');
-  //dpm(include_once('prestashop/config/settings.inc.php'));
- include_once('Cookie.php');
-
- $cookie = new CookieCore('ps-s'.TRUE);
- // dpm($cookie->exists());
- // dpm($cookie->getAll());
-
-
-
-// $cookie->__set('passwd', );
-
- $p_user = prestashop_customer_fetch_current_user();
-
- $cookie->__set('passwd', (string)$p_user->passwd);
- $cookie->__set('email', 'paul@paulmiller.it');
- $cookie->__set('logged', 1);
- $cookie->__set('id_guest', '');
- $cookie->__set('id_customer', 4);
- $cookie->__set('customer_lastname', (string)$p_user->lastname);
- $cookie->__set('customer_firstname', (string)$p_user->firstname);
-
- dpm('attempting set cookie value');#
-// dpm($cookie);
-
-dpm($cookie->getAll());
-
-
- //decrypt users password from drupal
- //and then re-encrypt it for submission
- // :/ thats so so so wrong
- // !!!!!!!! 
-
-
- /*log the user in  public static function encrypt($passwd)
-  {
-    return md5(_COOKIE_KEY_.$passwd);
-  }
-
-  */
-var_dump($cookie);
-
-}
-
-function prestashop_customer_fetch_current_user(){
-
-  global $user;
-
-  //if user is not anonymous
-  if ($user->uid > 0){
-
-  }
-
-  $user->mail = "paul@paulmiller.it";
-
-  $url = variable_get('prestashop_url', '');
-  $key = variable_get('prestashop_key', '');
-
-  $webService = new PrestaShopWebservice($url, $key, true);
-  $xml = $webService->get(array('url' => $url . '/api/customers?filter[email]=' . $user->mail));
-//  $xml = $webService->get(array('url' => $url . '/api/customers'));
-
-  $resources = $xml->customers->children();
-
-  $presta_uid = ((string)$resources->attributes());
-
-  $xml = $webService->get(array('url' => $url . '/api/customers/' . $presta_uid));
-  //now make a second request
-
-  dpm($xml);
-
-  $customer = $xml->customer->children();
-
-  $pass = (string)$resources->passwd;
-// foreach ($resources as $key => $resource)
-// echo 'Name of field : '.$key.' - Value : '.$resource.'<br />';
-  dpm($customer);
-  return $customer;
-
-}
-
-
-function prestashop_customer_write_cookie() {}
+// function prestashop_customer_write_cookie() {}
 
 /**
  * Implements hook_init().
@@ -118,12 +31,59 @@ function prestashop_customer_write_cookie() {}
 function prestashop_customer_init() {
 
   require_once 'PSWebServiceLibrary.php';
-  dpm('hello world');
 
-
-
-  prestashop_customer_read_cookie();
+ /* prestashop_customer_write_customer_cookie();*/
   
+}
+
+function prestashop_customer_login_cookie(){}
+
+function prestashop_customer_write_customer_cookie() {
+
+ include_once('Cookie.php');
+
+ $customer = prestashop_customer_fetch_current_customer();
+
+ $cookie = new CookieCore('ps-s'.TRUE);
+
+ $cookie->__set('passwd', (string)$customer->passwd);
+ $cookie->__set('email', 'paul@paulmiller.it');
+ $cookie->__set('logged', 1);
+ $cookie->__set('id_guest', '');
+ $cookie->__set('id_customer', 4);
+ $cookie->__set('customer_lastname', (string)$customer->lastname);
+ $cookie->__set('customer_firstname', (string)$customer->firstname);
+
+// dpm($cookie->getAll());
+}
+//@todo 
+function prestashop_customer_fetch_current_customer() {
+
+  global $user;
+
+  //exit if user is anonymous
+  if (!$user->uid > 0){
+    return null;
+  }
+
+ // $user->mail = "paul@paulmiller.it";
+
+  $url = variable_get('prestashop_url', '');
+  $key = variable_get('prestashop_key', '');
+
+  //@todo isset!
+  $webService = new PrestaShopWebservice($url, $key, true);
+  $xml = $webService->get(array('url' => $url . '/api/customers?filter[email]=' . $user->mail));
+
+  $resources = $xml->customers->children();
+  $presta_uid = ((string)$resources->attributes());
+
+  $xml = $webService->get(array('url' => $url . '/api/customers/' . $presta_uid));
+  $customer = $xml->customer->children();
+
+  //$pass = (string)$resources->passwd;
+  return $customer;
+
 }
 
 
@@ -164,7 +124,7 @@ function prestashop_customer_config_form($form, &$form_state) {
     '#title' => 'Prestashop Cookie Key',
     '#maxlength' => 127,
     '#default_value' => variable_get('prestashop_cookie_key', ''),
-    '#description' => 'Might not use this!'
+    '#description' => ''
   );
 
   $form['prestashop_cookie_iv'] = array(
@@ -176,16 +136,23 @@ function prestashop_customer_config_form($form, &$form_state) {
 
   $form['prestashop_rijndael_key'] = array(
   '#type' => 'textfield',
-  '#title' => 'Prestashop Encryption Key',
+  '#title' => 'Prestashop Rijdael Encryption Key',
   '#maxlength' => 127,
   '#default_value' => variable_get('prestashop_rijndael_key', ''),
   );
 
   $form['prestashop_rijndael_iv'] = array(
     '#type' => 'textfield',
-    '#title' => 'Prestashop Encryption IV',
+    '#title' => 'Prestashop Rijndael Encryption IV',
     '#maxlength' => 127,
     '#default_value' => variable_get('prestashop_rijndael_iv', ''),
+  );
+
+  $form['prestashop_version'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Prestashop version number',
+    '#maxlength' => 127,
+    '#default_value' => variable_get('prestashop_version', ''),
   );
 
   $form['prestashop_debug_mode'] = array(
@@ -247,6 +214,8 @@ function prestashop_create_user($user) {
   $opt['postXml'] = $xml->asXML();
 
   $xml = $webService->add($opt);
+
+  //@todo need some kind of confirmation
 }
 
 // function prestashop_get_user($edit, $account) {
@@ -259,6 +228,8 @@ function prestashop_create_user($user) {
 //   $resources = $xml->children()->children();
 // }
 
+
+/*
 function prestashop_customer_create_presta_login($email = 'paul@paulmiller.it') {
 
   $url = variable_get('prestashop_url', '');
@@ -274,10 +245,11 @@ function prestashop_customer_create_presta_login($email = 'paul@paulmiller.it') 
   return setrawcookie ( $cookie_name,  $cookie_value, time() + 1728000, '/', '.llrsso.dev', FALSE, TRUE);
 
 }
+*/
 
 function prestashop_customer_user_login(&$edit, $account) {
 
-  $cookie_set = prestashop_customer_create_presta_login($account->mail);
+  prestashop_customer_write_customer_cookie();
 
 }
 
@@ -287,11 +259,10 @@ function prestashop_customer_user_logout($account) {
 
   foreach($_COOKIE as $key => $value) {
     if (preg_match('/PrestaShop/', $key)) {
-    unset($_COOKIE[$key]);
-    //delete values and set expire time in past
-    setcookie($key, "foo", time()-3600, '/', '.llrsso.dev', false, true);
-    //setcookie('key', "boo", time()+3600);
-    drupal_static('drupal_http_headers', array());
+
+      unset($_COOKIE[$key]);
+      setcookie($key, "foo", time()-3600, '/', '.llrsso.dev', false, true);
+      drupal_static('drupal_http_headers', array());
     }
   }
 }
