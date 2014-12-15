@@ -25,6 +25,7 @@
 */
 require('Rijndael.php');
 
+//@todo use varget to populate config values
 
 class CookieCore
 {
@@ -65,39 +66,18 @@ class CookieCore
 	public function __construct($name = 'ps', $path = '', $expire = null, $shared_urls = null, $standalone = false, $secure = false)
 	{
 
-		dpm('foo v');
-		dpm(_PS_VERSION_);
 		$this->_content = array();
 		$this->_standalone = $standalone;
 		$this->_expire = is_null($expire) ? time() + 1728000 : (int)$expire;
-		// $this->_path = trim(($this->_standalone ? '' : Context::getContext()->shop->physical_uri).$path, '/\\').'/';
-		// if ($this->_path{0} != '/') $this->_path = '/'.$this->_path;
-		// $this->_path = rawurlencode($this->_path);
-		// $this->_path = str_replace('%2F', '/', $this->_path);
-		// $this->_path = str_replace('%7E', '~', $this->_path);
-		$this->_path = '/'; //@todo find a more elegant way to do this
+
+		$this->_path = '/'; //@todo consider adding a path var
 		$this->_domain = $this->getDomain();
-		$this->_name = 'PrestaShop-'.md5(($this->_standalone ? '' : _PS_VERSION_).$name.$this->_domain);
-
-		// var_dump($this->_standalone);
-		// var_dump(_PS_VERSION_);
-		// var_dump($name);
-		// var_dump($this->_domain);
-		// die($this->_name);
-
-
-
+		//standalone _must_ be false for this to work (ruling out use of blowfish crypt)
+		$this->_name = 'PrestaShop-'. md5(variable_get('prestashop_version', '') . $name . $this->_domain);
 		$this->_allow_writing = true;
-		dpm(__FILE__);
-		$this->_salt = $this->_standalone ? str_pad('', 8, md5('ps'.__FILE__)) : _COOKIE_IV_;
-		// if ($this->_standalone)
-		// 	$this->_cipherTool = new Blowfish(str_pad('', 56, md5('ps'.__FILE__)), str_pad('', 56, md5('iv'.__FILE__)));
-		// elseif (!Configuration::get('PS_CIPHER_ALGORITHM') || !defined('_RIJNDAEL_KEY_'))
-		// 	$this->_cipherTool = new Blowfish(_COOKIE_KEY_, _COOKIE_IV_);
-		// else
-		$this->_cipherTool = new RijndaelCore(_RIJNDAEL_KEY_, _RIJNDAEL_IV_);
+		$this->_salt = variable_get('prestashop_cookie_iv', '');
+		$this->_cipherTool = new RijndaelCore(variable_get('prestashop_rijndael_key', ''), variable_get('prestashop_rijndael_iv', ''));
 		$this->_secure = (bool)$secure;
-
 		$this->update();
 	}
 
@@ -108,39 +88,11 @@ class CookieCore
 
 	protected function getDomain($shared_urls = null)
 	{
-		//@todo fetch from drupal function 
 
+
+		//@todo add a var / get set for this
 		return '.llrsso.dev';
 
-		// $r = '!(?:(\w+)://)?(?:(\w+)\:(\w+)@)?([^/:]+)?(?:\:(\d*))?([^#?]+)?(?:\?([^#]+))?(?:#(.+$))?!i';
-
-		// if (!preg_match ($r, Tools::getHttpHost(false, false), $out) || !isset($out[4]))
-		// 	return false;
-
-		// if (preg_match('/^(((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]{1}[0-9]|[1-9]).)'.
-		// 	'{1}((25[0-5]|2[0-4][0-9]|[1]{1}[0-9]{2}|[1-9]{1}[0-9]|[0-9]).)'.
-		// 	'{2}((25[0-5]|2[0-4][0-9]|[1]{1}[0-9]{2}|[1-9]{1}[0-9]|[0-9]){1}))$/', $out[4]))
-		// 	return false;
-		// if (!strstr(Tools::getHttpHost(false, false), '.'))
-		// 	return false;
-
-		// $domain = false;
-		// if ($shared_urls !== null)
-		// {
-		// 	foreach ($shared_urls as $shared_url)
-		// 	{
-		// 		if ($shared_url != $out[4])
-		// 			continue;
-		// 		if (preg_match('/^(?:.*\.)?([^.]*(?:.{2,4})?\..{2,3})$/Ui', $shared_url, $res))
-		// 		{
-		// 			$domain = '.'.$res[1];
-		// 			break;
-		// 		}
-		// 	}
-		// }
-		// if (!$domain)
-		// 	$domain = $out[4];
-		// return $domain;
 	}
 
 	/**

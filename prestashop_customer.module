@@ -1,7 +1,6 @@
 <?php
 
 //@todo add try / catch and error handling for requests
-//@todo overide front controller redirecting to /user on d site
 //@todo actionBeforeAuthentication <-- helpful hook
 //@todo tidy up included files
 //@todo add feature for additional profile fields 
@@ -12,7 +11,8 @@
 //@todo refactor
 //@todo add validation and to prestashop config page and trim values
 //@todo add documentaton to the config page on where to find these values within prestashop
-
+//@todo prestaside force default config values and / or do some kind of checking on the presta side
+//@todo handle cookies differenly for admin on the prestaside
 
 define('_COOKIE_KEY_', 'cnVHEPeCHmZ4EiZE6mhgaNKVfmD8LYgE2FL8tHErKBgRzciZPprGa3GP');
 define('_COOKIE_IV_', 'sqmYZJCL');
@@ -22,8 +22,6 @@ define('_PS_VERSION_', '1.6.0.9'); //is there any way to interrogate that over t
 define('PS_CIPHER_ALGORITHM', 1);  //use mcrypt lib and not blowfisj
 
 // add ps lang default check PS_LANG_DEFAULT
-
-// function prestashop_customer_write_cookie() {}
 
 /**
  * Implements hook_init().
@@ -66,8 +64,6 @@ function prestashop_customer_fetch_current_customer() {
     return null;
   }
 
- // $user->mail = "paul@paulmiller.it";
-
   $url = variable_get('prestashop_url', '');
   $key = variable_get('prestashop_key', '');
 
@@ -86,7 +82,6 @@ function prestashop_customer_fetch_current_customer() {
 
 }
 
-
 function prestashop_customer_menu() {
 
   $items['admin/config/system/prestashop'] = array(
@@ -94,21 +89,43 @@ function prestashop_customer_menu() {
     'description' => '@todo description',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('prestashop_customer_config_form'),
-    'access callback' => TRUE, //@todo add perm
+    'access callback' => TRUE, //@todo add perm access arguments 
     'type' => MENU_NORMAL_ITEM,
+  );
+
+  //drupal ?destination= does not allow forwarding to other domains so using this as a helper
+  //referring to an internal path that will call a drupal_goto
+  $items['presta-redirect/%'] = array(
+    'title' => '',
+    'page callback' => 'prestashop_customer_redirection',
+    'page arguments' => array(1),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
   );
 
   return $items;
 
 }
 
+function prestashop_customer_redirection($path){
+
+  $shop_domain = variable_get('prestashop_url', '');
+  // dpm($shop_domain);
+  // dpm($path);
+  drupal_goto($shop_domain . $path);
+}
+
 function prestashop_customer_config_form($form, &$form_state) {
+
+  //add a description field 
+
 
   $form['prestashop_key'] = array (
     '#type' => 'textfield',
     '#title' => t('Prestashop API Key'),
     '#maxlength' => 127,
     '#default_value' =>  variable_get('prestashop_key', ''),
+    '#description' => 'Generate the API key (and set its permissions) at PrestaShop->Admin->Advanced Parameters->Webservice' ,
   );
 
   $form['prestashop_url'] = array (
@@ -116,7 +133,7 @@ function prestashop_customer_config_form($form, &$form_state) {
     '#title' => t('Prestashop URL'),
     '#maxlength' => 127,
     '#default_value' => variable_get('prestashop_url', ''),
-    '#description' => 'Enter URL in the form "http://example.com/" (include the trailing slash)',
+    '#description' => 'Enter URL of the shop in the form "http://example.com/" (include the trailing slash)',
   );
 
   $form['prestashop_cookie_key'] = array(
@@ -124,7 +141,7 @@ function prestashop_customer_config_form($form, &$form_state) {
     '#title' => 'Prestashop Cookie Key',
     '#maxlength' => 127,
     '#default_value' => variable_get('prestashop_cookie_key', ''),
-    '#description' => ''
+    '#description' => 'Check values in file located at PrestaShop/config/settings.inc.php',
   );
 
   $form['prestashop_cookie_iv'] = array(
@@ -132,13 +149,15 @@ function prestashop_customer_config_form($form, &$form_state) {
     '#title' => 'Prestashop Cookie IV',
     '#maxlength' => 127,
     '#default_value' => variable_get('prestashop_cookie_iv', ''),
+    '#description' => 'Check values in file located at PrestaShop/config/settings.inc.php',
   );
 
   $form['prestashop_rijndael_key'] = array(
-  '#type' => 'textfield',
-  '#title' => 'Prestashop Rijdael Encryption Key',
-  '#maxlength' => 127,
-  '#default_value' => variable_get('prestashop_rijndael_key', ''),
+    '#type' => 'textfield',
+    '#title' => 'Prestashop Rijdael Encryption Key',
+    '#maxlength' => 127,
+    '#default_value' => variable_get('prestashop_rijndael_key', ''),
+    '#description' => 'Check values in file located at PrestaShop/config/settings.inc.php',
   );
 
   $form['prestashop_rijndael_iv'] = array(
@@ -146,6 +165,7 @@ function prestashop_customer_config_form($form, &$form_state) {
     '#title' => 'Prestashop Rijndael Encryption IV',
     '#maxlength' => 127,
     '#default_value' => variable_get('prestashop_rijndael_iv', ''),
+    '#description' => 'Check values in file located at PrestaShop/config/settings.inc.php',
   );
 
   $form['prestashop_version'] = array(
@@ -153,6 +173,7 @@ function prestashop_customer_config_form($form, &$form_state) {
     '#title' => 'Prestashop version number',
     '#maxlength' => 127,
     '#default_value' => variable_get('prestashop_version', ''),
+    '#description' => 'Check values in file located at PrestaShop/config/settings.inc.php',
   );
 
   $form['prestashop_debug_mode'] = array(
