@@ -14,12 +14,12 @@
 //@todo prestaside force default config values and / or do some kind of checking on the presta side
 //@todo handle cookies differenly for admin on the prestaside
 
-define('_COOKIE_KEY_', 'cnVHEPeCHmZ4EiZE6mhgaNKVfmD8LYgE2FL8tHErKBgRzciZPprGa3GP');
-define('_COOKIE_IV_', 'sqmYZJCL');
-define('_RIJNDAEL_KEY_', 'dutwichtd2IAk1JZeTc8HxuiAqatzQ2k');
-define('_RIJNDAEL_IV_', 'iTtZq4XiI9xOfJXb6WlT+g==');
-define('_PS_VERSION_', '1.6.0.9'); //is there any way to interrogate that over the API
-define('PS_CIPHER_ALGORITHM', 1);  //use mcrypt lib and not blowfisj
+// define('_COOKIE_KEY_', 'cnVHEPeCHmZ4EiZE6mhgaNKVfmD8LYgE2FL8tHErKBgRzciZPprGa3GP');
+// define('_COOKIE_IV_', 'sqmYZJCL');
+// define('_RIJNDAEL_KEY_', 'dutwichtd2IAk1JZeTc8HxuiAqatzQ2k');
+// define('_RIJNDAEL_IV_', 'iTtZq4XiI9xOfJXb6WlT+g==');
+// define('_PS_VERSION_', '1.6.0.9'); //is there any way to interrogate that over the API
+// define('PS_CIPHER_ALGORITHM', 1);  //use mcrypt lib and not blowfisj
 
 // add ps lang default check PS_LANG_DEFAULT
 
@@ -29,57 +29,6 @@ define('PS_CIPHER_ALGORITHM', 1);  //use mcrypt lib and not blowfisj
 function prestashop_customer_init() {
 
   require_once 'PSWebServiceLibrary.php';
-
- /* prestashop_customer_write_customer_cookie();*/
-  
-}
-
-function prestashop_customer_login_cookie(){}
-
-function prestashop_customer_write_customer_cookie() {
-
- include_once('Cookie.php');
-
- $customer = prestashop_customer_fetch_current_customer();
-
- $cookie = new CookieCore('ps-s'.TRUE);
-
- $cookie->__set('passwd', (string)$customer->passwd);
- $cookie->__set('email', 'paul@paulmiller.it');
- $cookie->__set('logged', 1);
- $cookie->__set('id_guest', '');
- $cookie->__set('id_customer', 4);
- $cookie->__set('customer_lastname', (string)$customer->lastname);
- $cookie->__set('customer_firstname', (string)$customer->firstname);
-
-// dpm($cookie->getAll());
-}
-//@todo 
-function prestashop_customer_fetch_current_customer() {
-
-  global $user;
-
-  //exit if user is anonymous
-  if (!$user->uid > 0){
-    return null;
-  }
-
-  $url = variable_get('prestashop_url', '');
-  $key = variable_get('prestashop_key', '');
-
-  //@todo isset!
-  $webService = new PrestaShopWebservice($url, $key, true);
-  $xml = $webService->get(array('url' => $url . '/api/customers?filter[email]=' . $user->mail));
-
-  $resources = $xml->customers->children();
-  $presta_uid = ((string)$resources->attributes());
-
-  $xml = $webService->get(array('url' => $url . '/api/customers/' . $presta_uid));
-  $customer = $xml->customer->children();
-
-  //$pass = (string)$resources->passwd;
-  return $customer;
-
 }
 
 function prestashop_customer_menu() {
@@ -89,12 +38,11 @@ function prestashop_customer_menu() {
     'description' => '@todo description',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('prestashop_customer_config_form'),
-    'access callback' => TRUE, //@todo add perm access arguments 
+    'access arguments' => array('Administer site configuration'), //TRUE, //@todo add perm access arguments 
     'type' => MENU_NORMAL_ITEM,
   );
 
-  //drupal ?destination= does not allow forwarding to other domains so using this as a helper
-  //referring to an internal path that will call a drupal_goto
+  //presta-shop passes a url to redirect to
   $items['presta-redirect/%'] = array(
     'title' => '',
     'page callback' => 'prestashop_customer_redirection',
@@ -107,18 +55,10 @@ function prestashop_customer_menu() {
 
 }
 
-function prestashop_customer_redirection($path){
-
-  $shop_domain = variable_get('prestashop_url', '');
-  // dpm($shop_domain);
-  // dpm($path);
-  drupal_goto($shop_domain . $path);
-}
-
+/*
+ *  Config settings
+ */
 function prestashop_customer_config_form($form, &$form_state) {
-
-  //add a description field 
-
 
   $form['prestashop_key'] = array (
     '#type' => 'textfield',
@@ -185,6 +125,149 @@ function prestashop_customer_config_form($form, &$form_state) {
   return system_settings_form($form);
 }
 
+function prestashop_customer_write_customer_cookie() {
+
+ include_once('Cookie.php');
+
+ $customer = prestashop_customer_fetch_current_customer();
+
+ if (!is_null($customer)){
+
+   $cookie = new CookieCore('ps-s'.TRUE);
+
+   $cookie->__set('passwd', (string)$customer->passwd);
+   $cookie->__set('email', 'paul@paulmiller.it');
+   $cookie->__set('logged', 1);
+   $cookie->__set('id_guest', '');
+   $cookie->__set('id_customer', 4);
+   $cookie->__set('customer_lastname', (string)$customer->lastname);
+   $cookie->__set('customer_firstname', (string)$customer->firstname);
+
+}
+
+}
+//@todo 
+
+/*
+ * Get Prestashop UID of the current user via XML request
+ * 
+ * @return Obj
+ *   Prestashop user object
+ */
+function prestashop_customer_fetch_current_customer() {
+
+  global $user;
+
+  //exit if user is anonymous
+  if (!$user->uid > 0){
+    return null;
+  }
+
+  $url = variable_get('prestashop_url', '');
+  $key = variable_get('prestashop_key', '');
+
+  //@todo isset!
+  $webService = new PrestaShopWebservice($url, $key, true);
+
+  try {
+    $xml = $webService->get(array('url' => $url . '/api/customers?filter[email]=' . $user->mail));
+  } catch ( PrestaShopWebserviceException $ex ) {
+    //log and fail silently
+    watchdog('prestashop_customer', 'Unable to fetch data for %mail. Exception: %ex', 
+              array('%mail' => $user->mail, '%ex' => $ex)); 
+    return NULL;
+  } 
+
+
+  $presta_uid = (string) $xml->customers->children()->attributes();
+  //make sure we have an ID
+  if (!empty($presta_uid) && is_numeric($presta_uid)) {
+
+    try {
+
+      $xml = $webService->get(array('url' => $url . '/api/customers/' . $presta_uid)); 
+    } catch ( PrestaShopWebserviceException $ex ) {
+
+
+          watchdog('prestashop_customer', 'Unable to fetch data for presta user %presta_uid. Exception: %ex', 
+              array('%presta_uid' => $presta_uid, '%ex' => $ex)); 
+          return NULL;
+    }
+
+    return $xml->customer->children();
+  }
+
+
+
+ // $customer = $xml->customer->children();
+
+  //$pass = (string)$resources->passwd;
+  //return $customer;
+
+}
+
+
+
+function prestashop_customer_redirection($path){
+
+  $shop_domain = variable_get('prestashop_url', '');
+  // dpm($shop_domain);
+  // dpm($path);
+  drupal_goto($shop_domain . $path);
+}
+
+
+
+
+
+
+/*
+ * Implements hook_user_login
+ */
+function prestashop_customer_user_login(&$edit, $account) {
+
+  prestashop_customer_write_customer_cookie();
+
+}
+
+
+/*
+ * Implements hook_user_logout()
+ */
+function prestashop_customer_user_logout($account) {
+
+  watchdog('presta_module', 'user %mail logged out', array('%mail' => $account->mail));
+
+  foreach($_COOKIE as $key => $value) {
+    if (preg_match('/PrestaShop/', $key)) {
+
+      unset($_COOKIE[$key]);
+      setcookie($key, "foo", time()-3600, '/', '.llrsso.dev', false, true);
+      drupal_static('drupal_http_headers', array());
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter.
+ * @param $form
+ * @param $form_state
+ */
+function prestashop_customer_form_user_register_form_alter(&$form, &$form_state) {
+  $form['#submit'][] = 'prestashop_customer_user_register_submit';
+}
+
+function prestashop_customer_user_register_submit(&$form, &$form_state) {
+  $values = $form_state['values'];
+  $user = array(
+    'pass' => $values['pass'],
+    'mail' => $values['mail'],
+    'field_first_name' => $values['field_first_name'][LANGUAGE_NONE][0]['value'],
+    'field_last_name' => $values['field_last_name'][LANGUAGE_NONE][0]['value'],
+  );
+  prestashop_create_user($user);
+}
+
 /**
  * Custom function to create a user in Prestashop.
  */
@@ -239,6 +322,7 @@ function prestashop_create_user($user) {
   //@todo need some kind of confirmation
 }
 
+
 // function prestashop_get_user($edit, $account) {
 //   $url = variable_get('prestashop_url', '');
 //   $key = variable_get('prestashop_key', '');
@@ -267,43 +351,3 @@ function prestashop_customer_create_presta_login($email = 'paul@paulmiller.it') 
 
 }
 */
-
-function prestashop_customer_user_login(&$edit, $account) {
-
-  prestashop_customer_write_customer_cookie();
-
-}
-
-function prestashop_customer_user_logout($account) {
-
-  watchdog('presta_module', 'user logged out');
-
-  foreach($_COOKIE as $key => $value) {
-    if (preg_match('/PrestaShop/', $key)) {
-
-      unset($_COOKIE[$key]);
-      setcookie($key, "foo", time()-3600, '/', '.llrsso.dev', false, true);
-      drupal_static('drupal_http_headers', array());
-    }
-  }
-}
-
-/**
- * Implements hook_form_FORM_ID_alter.
- * @param $form
- * @param $form_state
- */
-function prestashop_customer_form_user_register_form_alter(&$form, &$form_state) {
-  $form['#submit'][] = 'prestashop_customer_user_register_submit';
-}
-
-function prestashop_customer_user_register_submit(&$form, &$form_state) {
-  $values = $form_state['values'];
-  $user = array(
-    'pass' => $values['pass'],
-    'mail' => $values['mail'],
-    'field_first_name' => $values['field_first_name'][LANGUAGE_NONE][0]['value'],
-    'field_last_name' => $values['field_last_name'][LANGUAGE_NONE][0]['value'],
-  );
-  prestashop_create_user($user);
-}
