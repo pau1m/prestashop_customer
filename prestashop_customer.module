@@ -186,7 +186,9 @@ function prestashop_customer_fetch_current_customer() {
     return NULL;
   } 
 
-
+  dpm($xml);
+  dpm((string)$xml->customers);
+  dpm((string)$xml->customers->attributes());
   $presta_uid = (string) $xml->customers->children()->attributes();
   //make sure we have an ID
   if (!empty($presta_uid) && is_numeric($presta_uid)) {
