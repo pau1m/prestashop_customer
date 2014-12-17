@@ -275,15 +275,17 @@ function prestashop_customer_user_logout($account) {
  */
 function prestashop_customer_form_user_register_form_alter(&$form, &$form_state) {
   $form['#submit'][] = 'prestashop_customer_user_register_submit';
+
 }
 
 function prestashop_customer_user_register_submit(&$form, &$form_state) {
   $values = $form_state['values'];
+  
   $user = array(
     'pass' => $values['pass'],
     'mail' => $values['mail'],
-    'field_first_name' => $values['field_first_name'][LANGUAGE_NONE][0]['value'],
-    'field_last_name' => $values['field_last_name'][LANGUAGE_NONE][0]['value'],
+    'field_first_name' => $values['first_name'],
+    'field_last_name' => $values['last_name'],
     );
   prestashop_create_user($user);
 }
