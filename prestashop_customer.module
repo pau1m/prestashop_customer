@@ -137,6 +137,9 @@ function prestashop_customer_write_customer_cookie() {
 
  include_once('Cookie.php');
 
+ global $user;
+
+
  $customer = prestashop_customer_fetch_current_customer();
 
  if (!is_null($customer)){
@@ -144,7 +147,7 @@ function prestashop_customer_write_customer_cookie() {
    $cookie = new CookieCore('ps-s'.TRUE);
 
    $cookie->__set('passwd', (string)$customer->passwd);
-   $cookie->__set('email', 'paul@paulmiller.it');
+   $cookie->__set('email', $user->mail);
    $cookie->__set('logged', 1);
    $cookie->__set('id_guest', '');
    $cookie->__set('id_customer', 4);
