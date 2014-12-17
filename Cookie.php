@@ -73,7 +73,7 @@ class CookieCore
 		$this->_path = '/'; //@todo consider adding a path var
 		$this->_domain = $this->getDomain();
 		//standalone _must_ be false for this to work (ruling out use of blowfish crypt)
-		$this->_name = 'PrestaShop-'. md5(variable_get('prestashop_version', '') . $name . $this->_domain);
+		$this->_name = 'PrestaShop-'. md5(variable_get('prestashop_version', '') . $name);
 		$this->_allow_writing = true;
 		$this->_salt = variable_get('prestashop_cookie_iv', '');
 		$this->_cipherTool = new RijndaelCore(variable_get('prestashop_rijndael_key', ''), variable_get('prestashop_rijndael_iv', ''));
@@ -91,7 +91,7 @@ class CookieCore
 
 
 		//@todo add a var / get set for this
-		return '.llrsso.dev';
+		return variable_get('prestashop_domain', '');
 
 	}
 
