@@ -60,6 +60,14 @@ function prestashop_customer_menu() {
  */
 function prestashop_customer_config_form($form, &$form_state) {
 
+  $form['prestashop_domain'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Cookie Domain',
+    '#default_value' => variable_get('prestashop_domain'),
+    '#description' => 'Cookie domain including leading . eg .example.com',
+  ); 
+
+
   $form['prestashop_key'] = array (
     '#type' => 'textfield',
     '#title' => t('Prestashop API Key'),
@@ -193,7 +201,7 @@ function prestashop_customer_fetch_current_customer() {
               array('%presta_uid' => $presta_uid, '%ex' => $ex)); 
           return NULL;
     }
-
+    dpm($xml);
     return $xml->customer->children();
   }
 
