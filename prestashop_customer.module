@@ -189,9 +189,6 @@ function prestashop_customer_fetch_current_customer() {
     return NULL;
   } 
 
-  dpm($xml);
-  dpm((string)$xml->customers);
-  dpm((string)$xml->customers->attributes());
   $presta_uid = (string) $xml->customers->children()->attributes();
   //make sure we have an ID
   if (!empty($presta_uid) && is_numeric($presta_uid)) {
@@ -206,7 +203,7 @@ function prestashop_customer_fetch_current_customer() {
               array('%presta_uid' => $presta_uid, '%ex' => $ex)); 
           return NULL;
     }
-    dpm($xml);
+  
     return $xml->customer->children();
   }
 
@@ -255,7 +252,7 @@ function prestashop_customer_user_logout($account) {
     if (preg_match('/PrestaShop/', $key)) {
 
       unset($_COOKIE[$key]);
-      setcookie($key, "foo", time()-3600, '/', '.llrsso.dev', false, true);
+      setcookie($key, "foo", time()-3600, '/', variable_get('prestashop_domain',''), false, true);
       drupal_static('drupal_http_headers', array());
     }
   }
