@@ -248,6 +248,13 @@ function prestashop_customer_user_logout($account) {
   }
 }
 
+
+
+//@to do actually can replace most of this with user insert
+//grab out the value we want
+
+
+
 /**
  * Implements hook_form_FORM_ID_alter.
  * @param $form
@@ -262,9 +269,11 @@ function prestashop_customer_user_register_submit(&$form, &$form_state) {
   $user = array(
     'pass' => $values['pass'],
     'mail' => $values['mail'],
-    'field_first_name' => $values['field_first_name'][LANGUAGE_NONE][0]['value'],
-    'field_last_name' => $values['field_last_name'][LANGUAGE_NONE][0]['value'],
-  );
+
+    //to work with the site as it is just now - just need to remove the field_part
+
+    'field_first_name' => $values['first_name'][LANGUAGE_NONE][0]['value'],
+    'field_last_name' => $values['last_name'][LANGUAGE_NONE][0]['value'],
   prestashop_create_user($user);
 }
 
